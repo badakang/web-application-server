@@ -14,6 +14,7 @@ import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import db.DataBase;
 import model.User;
 import util.HttpRequestUtils;
 import util.IOUtils;
@@ -63,8 +64,25 @@ public class RequestHandler extends Thread {
 
 				User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
 				log.debug("user : {}", user);
-				DataOutputStream dos = new DataOutputStream(out);
-				response302Header(dos, "/index.html");
+//				DataOutputStream dos = new DataOutputStream(out);
+//				response302Header(dos, "/index.html");
+				DataBase.addUser(user);
+			} else if ("/user/login".equals(url)){
+				String body = IOUtils.readData(br, contentLength);
+				Map<String, String> params = HttpRequestUtils.parseQueryString(body);
+				
+				User user=DataBase.findUserById(params.get("userId"));
+				if (user == null) {
+					responseResource(out, "/user/login_failed.html");
+					return;
+				}
+				if (user.getPassword().equals(params.get("password"))) {
+					DataOutputStream dos = new DataOutputStream(out);
+					response302LoginSuccessHeader(dos);
+				} else {
+					responseResource(out, "/user/login_failed.html");
+				}
+				
 			} else {
 				responseResource(out, url);
 			}
@@ -73,7 +91,18 @@ public class RequestHandler extends Thread {
 		}
 	}
 	
-    private void response302Header(DataOutputStream dos, String url) {
+    private void response302LoginSuccessHeader(DataOutputStream dos) {
+    	try {
+			dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+			dos.writeBytes("Set-Cookie: logined=true \r\n");
+			dos.writeBytes("Location: /index.html \r\n");
+			dos.writeBytes("\r\n");
+		} catch (IOException e) {
+			log.error(e.getMessage());
+		}
+ 	}
+
+	private void response302Header(DataOutputStream dos, String url) {
     	try {
 			dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
 			dos.writeBytes("Location: "+ url +" \r\n");
