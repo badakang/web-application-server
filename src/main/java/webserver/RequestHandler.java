@@ -63,7 +63,8 @@ public class RequestHandler extends Thread {
 
 				User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
 				log.debug("user : {}", user);
-				url = "/index.html";
+				DataOutputStream dos = new DataOutputStream(out);
+				response302Header(dos, "/index.html");
 			} else {
 				responseResource(out, url);
 			}
@@ -72,7 +73,17 @@ public class RequestHandler extends Thread {
 		}
 	}
 	
-    private int getCotentLength(String line) {
+    private void response302Header(DataOutputStream dos, String url) {
+    	try {
+			dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+			dos.writeBytes("Location: "+ url +" \r\n");
+			dos.writeBytes("\r\n");
+		} catch (IOException e) {
+			log.error(e.getMessage());
+		}
+	}
+
+	private int getCotentLength(String line) {
 		String[] headerTokens = line.split(":");
 		return Integer.parseInt(headerTokens[1].trim());
 	}
