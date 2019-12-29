@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import model.User;
 import util.HttpRequestUtils;
+import util.IOUtils;
 
 public class RequestHandler extends Thread {
 	private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
@@ -41,22 +42,28 @@ public class RequestHandler extends Thread {
 
 			String[] tokens = line.split(" ");
 			log.debug("tokens : {}", tokens);
-
+			
+			int contentLength = 0;
 			while (!line.equals("")) {
+				log.debug("header : {}", line);
 				line = br.readLine();
-//				log.debug("header : {}", line);
+				if (line.contains("Content-Length")) {
+					contentLength = getCotentLength(line);
+				}
 			}
 
 			String url = tokens[1];
 			log.debug("url : {}", url);
 //			log.debug("url : {}, File.separator : {} ", url, File.separator);
 
-			if (url.startsWith("/user/create")) {
-				int index = url.indexOf("?");
-				String queryString = url.substring(index + 1);
-				Map<String, String> params = HttpRequestUtils.parseQueryString(queryString);
+			if (url.equals("/user/create")) {
+				//post
+				String body = IOUtils.readData(br, contentLength);
+				Map<String, String> params = HttpRequestUtils.parseQueryString(body);
+
 				User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
 				log.debug("user : {}", user);
+				url = "/index.html";
 			} else {
 				responseResource(out, url);
 			}
@@ -65,7 +72,12 @@ public class RequestHandler extends Thread {
 		}
 	}
 	
-    private void responseResource(OutputStream out, String url) throws IOException {
+    private int getCotentLength(String line) {
+		String[] headerTokens = line.split(":");
+		return Integer.parseInt(headerTokens[1].trim());
+	}
+
+	private void responseResource(OutputStream out, String url) throws IOException {
         DataOutputStream dos = new DataOutputStream(out);
         byte[] body = Files.readAllBytes(new File("./webapp" + url).toPath());
         response200Header(dos, body.length);
